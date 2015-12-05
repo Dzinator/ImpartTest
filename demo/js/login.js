@@ -7,6 +7,13 @@ $(document).ready(function(){
 	//hide password reset button initially
 	$("#passwordreset").hide();
 
+	var user = Parse.User.current();
+	if(user != null){
+		$("#username").text(user.get("username"));
+		$('#showLogin').text("Log Out");
+		$("#passwordreset").show();
+	}
+	
 	$('#showLogin').on('click', function(e) {
 		var currentUser = Parse.User.current();
 		if(currentUser == null) {
