@@ -1,7 +1,12 @@
-
 var minZoomBeforeError = 3; // check to see if we should change default zoom level
 var maxArticlesShown = 100;
 var currentMarkers = [];
+
+var politicsFilter = true;
+var sportsFilter = true;
+var cultureFilter = true;
+var technologyFilter = true;
+var allFilter = true;
 
 //populate articles (dummmy parameter   )
 repopulateArticles(5);
@@ -9,7 +14,6 @@ repopulateArticles(5);
 //query data base for 100 highest rated articles again after moving or zooming
 map.on('zoomend', repopulateArticles);
 map.on('moveend', repopulateArticles);
-
 
 function repopulateArticles(e){
 
@@ -36,18 +40,48 @@ function repopulateArticles(e){
     var Post = Parse.Object.extend("Post");
     var query = new Parse.Query(Post);
 
-    //get all articles within the visible area
-    query.descending("rating").limit(maxArticlesShown);
+    //get all articles with :
+    //      1. with highest rating/views
+    //      2. up to maxArtcilesShown
+    //      3. include user information from userID such as username etc...
+    query.descending("rating").limit(maxArticlesShown).include("userID");
     
+    var containedIn = [];
+
+    //check if we don't display everything
+    if (!allFilter)
+    {
+        //check if we display political articles
+        if (politicsFilter)
+            containedIn.push("politics");
+
+        //check if we display sports articles
+        if (sportsFilter)
+             containedIn.push("sports");
+
+        //check if we display cultural articles
+        if (cultureFilter)
+          containedIn.push("culture");
+
+        //check if we display technological articles    
+        if (technologyFilter)
+             containedIn.push("technology");
+
+         query.containedIn("type", containedIn);
+    }
+
     //not sure check this (we get error if we zoom out too much)
     if (!(map.getZoom() <= minZoomBeforeError))
         query.withinGeoBox("geoPoint", sw, ne);
 
-    query.include("userID");
     //CHECK HERE FOR SELECTING SPORTS/POLITICS/ETC...
     //ADD LAST ADDED FILTER AS WELL
     //by country?
     //by continent?
+    var politicsCount = 0;
+    var cultureCount = 0;
+    var sportsCount = 0;
+    var technologyCount = 0;
 
     //find the objects
     query.find({
@@ -69,10 +103,10 @@ function repopulateArticles(e){
              var Icon = null;
              switch(type)
              {
-                case "technology": Icon = TechnologyIcon; break;
-                case "culture": Icon = CultureIcon; break;
-                case "politics": Icon = PoliticsIcon; break;
-                case "sports": Icon = SportsIcon; break;
+                case "technology": Icon = TechnologyIcon; technologyCount = technologyCount + 1; break;
+                case "culture": Icon = CultureIcon; cultureCount = cultureCount + 1; break;
+                case "politics": Icon = PoliticsIcon; politicsCount = politicsCount + 1; break;
+                case "sports": Icon = SportsIcon; sportsCount = sportsCount + 1; break;
              }
   
              //add marker L.marker
@@ -83,21 +117,23 @@ function repopulateArticles(e){
                  {
                     title: caption
                  });
-             
+
              marker.fileUrl = file.url();
              marker.clicked = true;
-             
+             marker.title = caption;   
+
              marker.addTo(map);
              marker.dragging.disable();
              marker.bindPopup("<b> " + caption + "</b><br> " + 
-                              "<a target=\"_blank\" href=\"" + file.url() + "\"> See Article </a></br>" + 
+                             '<a href="javascript:void(0);" onclick="openArticle(\'' + marker.fileUrl + '\',\'' + marker.title + '\');"> See Article </a></br>' + 
                                 rating + "</br>" 
-                                + username + "</br>" 
+                                + "<a href='#' onclick='window.location.replace(\"./profile.html?"+username+"\");'>"+username+"</a>" + "</br>" 
                                 + updateAt + "</br>",
                                 {
                                     autopan:  false
                                 });
-             
+             //
+             //<a href="javascript:void(0);" onclick="ShowOld(2367,146986,2);">
              marker.on('mouseover', function(e)
              {
                 this.openPopup();
@@ -118,31 +154,50 @@ function repopulateArticles(e){
 
              marker.on('dblclick', function(e)
              {
-                $("#generalModalContent").html(this.popup);
-                $("#generalModal").modal("show");
-
                 //this.clicked = !this.clicked;
-                //openArticle(this.fileUrl);
+                openArticle(this.fileUrl, this.title);
              });
 
              //add marker to current markers
              currentMarkers.push(marker);
         }
+        $("#politicsnb").text(politicsCount);
+        $("#technologynb").text(technologyCount);
+        $("#culturenb").text(cultureCount);
+        $("#sportsnb").text(sportsCount);
      },
      error: function (error) {
          alert("Error: " + error.code + " " + error.message);
      }
   });
+
+  
+  //$("#totalnb").text((politicsCount + technologyCount + cultureCount + sportsCount));
 }
 
-function openArticle(fileUrl)
-{
-   var win = window.open(fileUrl, '_blank');
-   win.focus(); 
+function openArticle(fileUrl, caption) {
+    //update view count
+    var post = Parse.Object.extend("Post");
+    var query = new Parse.Query(post);
+    query.equalTo("caption", caption);
+    query.find({
+      success: function(results) {
+        for (var i = 0; i < results.length; i++) {
+          var object = results[i];
+          object.increment("rating");
+          object.save();
+        }
+      },
+      error: function(error) {
+      }
+    });
+
+    $("#generalModalContent").html(caption + "<br><br>" + "<img class=\"img-responsive\" src=" + fileUrl + ">");
+    $("#generalModal").modal("show");
 }
 
 var PoliticsIcon = L.icon({
-                                iconUrl: '../assets/politicsMarker.png', //CHANGE THIS
+                                iconUrl: '../assets/politicsMarker.png',
                                 //shadowUrl: 'leaf-shadow.png',
                                 iconSize:     [31, 41], // size of the icon
                                 shadowSize:   [50, 64], // size of the shadow
@@ -151,7 +206,7 @@ var PoliticsIcon = L.icon({
                                 popupAnchor:  [3, -38] // point from which the popup should open relative to the iconAnchor
                             });
 var SportsIcon = L.icon({
-                                iconUrl: '../assets/sportsMarker.png', //CHANGE THIS
+                                iconUrl: '../assets/sportsMarker.png',
                                 //shadowUrl: 'leaf-shadow.png',
                                 iconSize:     [31, 41], // size of the icon
                                 shadowSize:   [50, 64], // size of the shadow
@@ -161,7 +216,7 @@ var SportsIcon = L.icon({
                             });
 
 var CultureIcon = L.icon({
-                                iconUrl: '../assets/cultureMarker.png', //CHANGE THIS
+                                iconUrl: '../assets/cultureMarker.png',
                                 //shadowUrl: 'leaf-shadow.png',
                                 iconSize:     [31, 41], // size of the icon
                                 shadowSize:   [50, 64], // size of the shadow
@@ -170,7 +225,7 @@ var CultureIcon = L.icon({
                                 popupAnchor:  [3, -38] // point from which the popup should open relative to the iconAnchor
                             });
 var TechnologyIcon = L.icon({
-                                iconUrl: '../assets/technologyMarker.png', //CHANGE THIS
+                                iconUrl: '../assets/technologyMarker.png',
                                 //shadowUrl: 'leaf-shadow.png',
                                 iconSize:     [31, 41], // size of the icon
                                 shadowSize:   [50, 64], // size of the shadow

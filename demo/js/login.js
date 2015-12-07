@@ -10,7 +10,8 @@ $(document).ready(function(){
 	var user = Parse.User.current();
 	if(user != null){
 		$("#username").text(user.get("username"));
-		$('#showLogin').text("Log Out");
+		$("#showProfile").html("<a href='#' onclick='window.location.replace(\"./profile.html?"+user.get("username")+"\");'>My posts <span class='glyphicon glyphicon-book'></a>");
+		$('#showLogin').html("Log Out<span class=\"glyphicon glyphicon-log-out\"></span>");
 		$("#passwordreset").show();
 	}
 	
@@ -27,7 +28,8 @@ $(document).ready(function(){
 			$("#generalModal").modal("show");
 			
 			$("#username").text("Guest");
-			$('#showLogin').text("Login/Sign up");
+			$("#showProfile").html("");
+			$('#showLogin').html("Login/Sign up<span class=\"glyphicon glyphicon-log-in\">");
 			$("#passwordreset").hide();
 		}
 	});
@@ -133,7 +135,8 @@ function processLogin(name, password) {
 			  $("#generalModal").modal("show");
 			  $("#username").text(name);
 			  $('#loginModal').modal('hide');
-			  $('#showLogin').text("Log Out");
+			  $("#showProfile").html("<a href='#' onclick='window.location.replace(\"./profile.html?"+name+"\");'>My posts <span class='glyphicon glyphicon-book'></a>");
+			  $('#showLogin').html("Log Out<span class=\"glyphicon glyphicon-log-out\"></span>");
 			  $("#passwordreset").show();
 		  },
 		  error: function(user, error) {
